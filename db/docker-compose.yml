@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   web:
     image: ghcr.io/kurrier-org/kurrier-web:v3.0.11
@@ -30,33 +28,30 @@ services:
       timeout: 1s
       retries: 30
     volumes:
-      - ./redis_data:/data
+      - redis_data:/data
     ports:
       - ${REDIS_PORT}:${REDIS_PORT}
-
   dav:
     image: ckulka/baikal:nginx
     restart: always
     ports:
       - "5232:80"
     volumes:
-      - ./dav_config:/var/www/baikal/config
-      - ./dav_data:/var/www/baikal/Specific
-
+      - dav_config:/var/www/baikal/config
+      - dav_data:/var/www/baikal/Specific
   typesense:
     image: typesense/typesense:29.0
     restart: on-failure
     ports:
       - ${TYPESENSE_PORT}:${TYPESENSE_PORT}
     volumes:
-      - ./typesense-data:/data
+      - typesense_data:/data
     command: >
       --data-dir /data
       --api-key=${TYPESENSE_API_KEY}
       --enable-cors
     environment:
       - TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
-
   garage:
     image: dxflrs/garage:v2.3.0
     container_name: garage
@@ -72,14 +67,14 @@ services:
       GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_SECRET_KEY}
       GARAGE_DEFAULT_BUCKET: ${GARAGE_BUCKET}
     volumes:
+      # Config comes from the repo -> must stay a bind mount (a named volume would be empty)
       - ./garage/garage.toml:/etc/garage.toml
-      - ./garage/data:/var/lib/garage/data
-      - ./garage/meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - garage_meta:/var/lib/garage/meta
     command: >
       /garage server
       --single-node
       --default-bucket  
-
   baikal-postgres:
     image: postgres:18
     restart: unless-stopped
@@ -90,14 +85,14 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./baikal-data:/var/lib/postgresql
+      - baikal_data:/var/lib/postgresql
+      # Init scripts come from the repo -> keep as bind mount
       - ./baikal-init:/docker-entrypoint-initdb.d
     command: >
       postgres
       -c shared_buffers=128MB
       -c max_connections=100
       -c work_mem=4MB
-
   postgres:
     image: postgres:18
     container_name: app-postgres
@@ -114,14 +109,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
+      # Init SQL comes from the repo -> keep as bind mount
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: >
       postgres
       -c shared_buffers=256MB
       -c max_connections=200
       -c work_mem=4MB
-
   migrate:
     image: postgres:18
     depends_on:
@@ -132,6 +127,17 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB}
     volumes:
+      # Bootstrap scripts come from the repo -> keep as bind mount
       - ./init:/scripts
     entrypoint: [ "/bin/bash", "/scripts/db-bootstrap.sh" ]
     restart: "no"
+
+volumes:
+  redis_data:
+  dav_config:
+  dav_data:
+  typesense_data:
+  garage_data:
+  garage_meta:
+  baikal_data:
+  postgres_data:
