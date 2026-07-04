@@ -68,7 +68,7 @@ services:
       GARAGE_DEFAULT_BUCKET: ${GARAGE_BUCKET}
     volumes:
       # Config comes from the repo -> must stay a bind mount (a named volume would be empty)
-      - ./garage/garage.toml:/etc/garage.toml
+      - ./init/garage/garage.toml:/etc/garage.toml
       - garage_data:/var/lib/garage/data
       - garage_meta:/var/lib/garage/meta
     command: >
